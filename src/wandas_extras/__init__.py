@@ -4,7 +4,8 @@ Each function takes a wandas frame and leaves the frame unchanged. Functions mov
 once their interface has settled, and stay here as thin aliases for a while after that.
 """
 
+from wandas_extras.spectral import spectral_peaks
 from wandas_extras.statistics import signal_stats
 
-__all__ = ["signal_stats"]
+__all__ = ["signal_stats", "spectral_peaks"]
 __version__ = "0.1.0"
