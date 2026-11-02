@@ -1,0 +1,49 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "wandas-extras"
+version = "0.1.0"
+description = "Provisional analysis functions for wandas frames, kept here until they move into wandas"
+authors = [{ name = "kasahart" }]
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+license-files = ["LICENSE"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering",
+    "Typing :: Typed",
+]
+dependencies = [
+    "wandas>=0.12",
+    "numpy",
+    "scipy>=1.13.0",
+]
+
+[project.urls]
+Repository = "https://github.com/kasahart/wandas-extras.git"
+Issues = "https://github.com/kasahart/wandas-extras/issues"
+
+[dependency-groups]
+test = [
+    "pytest>=8.3.5",
+    "ruff>=0.9.9",
+    "ty>=0.0.26",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/wandas_extras"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "Q", "UP", "I", "N"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
