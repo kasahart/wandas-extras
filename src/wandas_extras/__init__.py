@@ -6,6 +6,7 @@ once their interface has settled, and stay here as thin aliases for a while afte
 
 from wandas_extras.spectral import spectral_peaks
 from wandas_extras.statistics import signal_stats
+from wandas_extras.vibration import integrate
 
-__all__ = ["signal_stats", "spectral_peaks"]
+__all__ = ["integrate", "signal_stats", "spectral_peaks"]
 __version__ = "0.1.0"
