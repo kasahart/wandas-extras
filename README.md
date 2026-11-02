@@ -21,6 +21,7 @@ signal_stats(frame.trim(1.0, 2.0), full_scale=1.0)
 | `order_spectrum`, `order_tracks` | ChannelFrame と回転パルス | 角度リサンプリングによる平均次数スペクトルと次数トラッキング（実効値） |
 | `spectral_kurtosis` | ChannelFrame | STFT によるスペクトル尖度（衝撃的な成分が強い帯域を探す） |
 | `envelope_spectrum` | ChannelFrame | 帯域通過 → 包絡線 → スペクトル（軸受・ギアの故障周波数） |
+| `modal_parameters` | 周波数応答関数（`transfer_function()` の 1 ch） | 固有振動数と減衰比（半値幅法、1 自由度＋剰余項の当てはめ） |
 | `signal_stats` | ChannelFrame | RMS、ピーク、波高率、直流分、尖度、dB 値、フルスケール付近のサンプルの割合と振幅分布 |
 
 ## 決めごと
