@@ -4,9 +4,18 @@ Each function takes a wandas frame and leaves the frame unchanged. Functions mov
 once their interface has settled, and stay here as thin aliases for a while after that.
 """
 
+from wandas_extras.rotating import order_spectrum, order_tracks, pulse_times, rpm_profile
 from wandas_extras.spectral import spectral_peaks
 from wandas_extras.statistics import signal_stats
 from wandas_extras.vibration import integrate
 
-__all__ = ["integrate", "signal_stats", "spectral_peaks"]
+__all__ = [
+    "integrate",
+    "order_spectrum",
+    "order_tracks",
+    "pulse_times",
+    "rpm_profile",
+    "signal_stats",
+    "spectral_peaks",
+]
 __version__ = "0.1.0"
