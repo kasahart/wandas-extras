@@ -15,6 +15,7 @@ signal_stats(frame.trim(1.0, 2.0), full_scale=1.0)
 
 | 関数 | 入力 | 内容 |
 |------|------|------|
+| `spectral_peaks` | SpectralFrame | スペクトルの山の周波数・振幅・突出量（dB の放物線補間も可） |
 | `signal_stats` | ChannelFrame | RMS、ピーク、波高率、直流分、尖度、dB 値、フルスケール付近のサンプルの割合と振幅分布 |
 
 ## 決めごと
