@@ -20,7 +20,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "wandas>=0.12",
+    "wandas>=0.13",
     "numpy",
     "scipy>=1.13.0",
 ]

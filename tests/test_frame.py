@@ -84,3 +84,31 @@ def test_rpm_replays_from_a_recipe():
 
 def test_plain_channel_frame_does_not_change():
     assert not hasattr(wd.from_numpy(np.zeros(8), FS), "rpm")
+
+
+def test_full_scale_fraction_and_histogram_per_channel():
+    x = np.array([[0.0, 0.5, -1.0, 1.0, 0.2], [0.1, 0.1, 0.1, 0.1, 0.1]])
+    frame = _frame(x)
+
+    np.testing.assert_allclose(frame.full_scale_fraction(1.0), [0.4, 0.0])
+    counts, edges = frame.amplitude_histogram(1.0, bins=4)
+
+    np.testing.assert_array_equal(counts, [np.histogram(row, bins=4, range=(-1.0, 1.0))[0] for row in x])
+    np.testing.assert_allclose(edges, [-1.0, -0.5, 0.0, 0.5, 1.0])
+    with pytest.raises(ValueError, match="full_scale"):
+        frame.full_scale_fraction(0.0)
+
+
+def test_envelope_spectrum_is_a_wandas_chain():
+    """The README recipe for the envelope spectrum: band-pass, envelope, remove DC, FFT."""
+    t = np.arange(FS * 2) / FS
+    carrier = np.sin(2 * np.pi * 3000 * t)
+    x = (1 + 0.5 * np.sin(2 * np.pi * 100 * t)) * carrier
+    frame = _frame(x)
+
+    spec = frame.band_pass_filter(2000.0, 4000.0, order=6).envelope().remove_dc().fft(window="hann")
+
+    amp = np.abs(np.asarray(spec.data))
+    i = int(np.argmin(np.abs(spec.freqs - 100.0)))
+    assert spec.freqs[np.argmax(amp[1:]) + 1] == pytest.approx(100.0)
+    assert amp[i] == pytest.approx(0.5, rel=0.02)  # peak amplitude of the modulation
