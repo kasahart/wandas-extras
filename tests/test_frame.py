@@ -180,3 +180,25 @@ def test_order_spectrum_replays_from_a_recipe():
     expected = other.angle_resample("tacho", samples_per_rev=32).order_spectrum(revs_per_block=8)
     assert type(replayed) is OrderSpectralFrame
     np.testing.assert_allclose(np.asarray(replayed.data), np.asarray(expected.data))
+
+
+def test_order_tracks_are_flat_for_constant_order_amplitudes():
+    frame = _run_up_frame()
+
+    tracks = frame.order_tracks([1.0, 3.0], tacho="tacho", window="flattop")
+
+    assert list(tracks.columns) == ["channel", "rpm", "order", "amplitude"]
+    assert set(tracks["channel"]) == {"vib"}
+    first = tracks[tracks["order"] == 1.0]
+    assert np.all(np.diff(first["rpm"]) > 0)
+    assert 600.0 < first["rpm"].min() < first["rpm"].max() < 1800.0
+    np.testing.assert_allclose(first["amplitude"], 1.0, rtol=0.01)
+    np.testing.assert_allclose(tracks[tracks["order"] == 3.0]["amplitude"], 0.5, rtol=0.01)
+
+
+def test_order_tracks_read_an_order_between_bins():
+    frame = _run_up_frame(orders=((3.03, 0.5),))
+
+    tracks = frame.order_tracks([3.03], tacho="tacho", revs_per_block=8, window="flattop")
+
+    np.testing.assert_allclose(tracks["amplitude"], 0.5, rtol=0.01)

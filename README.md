@@ -18,7 +18,7 @@ rpm = tacho.rpm(pulses_per_rev=1)  # 回転数の ChannelFrame（単位 rpm）
 `ExtrasFrame.read_wav()` などの読み込みが `ExtrasFrame` を返すのは、wandas 0.13.0 の次のリリース（kasahart/wandas#644）からです。
 wandas 0.13.0 では `ExtrasFrame.from_numpy()` で作ってください。
 
-まだ `ExtrasFrame` に移していない機能は、フレームを受け取る関数です。
+`modal_parameters` は、FRF のフレームを受け取ってモードの表を返す関数です。
 
 ## 機能
 
@@ -28,6 +28,7 @@ wandas 0.13.0 では `ExtrasFrame.from_numpy()` で作ってください。
 | `full_scale_fraction` | フルスケール付近（既定 99.9 % 以上）のサンプルの割合。`rms` と同じくチャンネルごとの配列 |
 | `amplitude_histogram` | [-full_scale, full_scale] の振幅分布（チャンネルごとの度数と区間の端） |
 | `angle_resample` | フレーム内の回転パルスのチャンネルを使い、ほかのチャンネルを等角度にリサンプリング。結果は `AngleFrame`（横軸は回転数 rev） |
+| `order_tracks` | 指定した次数の片振幅を回転数ごとに並べた表（次数トラッキング）。`find_peaks()` と同じく pandas の表を返す |
 | `AngleFrame.order_spectrum` | 角度領域の Welch 平均による次数スペクトル（片振幅）。結果は `OrderSpectralFrame`（横軸は次数） |
 
 ```python
@@ -38,7 +39,6 @@ spec.orders, spec.data  # 次数と片振幅。以前の order_spectrum の実�
 
 | 関数 | 入力 | 内容 |
 |------|------|------|
-| `order_tracks` | ChannelFrame と回転パルス | 角度リサンプリングによる次数トラッキング（実効値） |
 | `modal_parameters` | 周波数応答関数（`transfer_function()` の 1 ch） | 固有振動数と減衰比（半値幅法、1 自由度＋剰余項の当てはめ） |
 
 ### wandas 本体に移ったもの

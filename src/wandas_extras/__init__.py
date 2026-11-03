@@ -8,14 +8,12 @@ has (peak, kurtosis, find_peaks, spectral_kurtosis, integrate, envelope) are not
 
 from wandas_extras.frame import AngleFrame, ExtrasFrame, OrderSpectralFrame, recipe_registry
 from wandas_extras.modal import modal_parameters
-from wandas_extras.rotating import order_tracks
 
 __all__ = [
     "AngleFrame",
     "ExtrasFrame",
     "OrderSpectralFrame",
     "modal_parameters",
-    "order_tracks",
     "recipe_registry",
 ]
 __version__ = "0.1.0"
