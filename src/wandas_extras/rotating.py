@@ -35,63 +35,6 @@ def _angle_resample(frame: Any, tacho: Any, pulses_per_rev: int, samples_per_rev
     return theta, tg, xa
 
 
-def order_spectrum(
-    frame: Any,
-    tacho: Any,
-    pulses_per_rev: int = 1,
-    samples_per_rev: int = 64,
-    revs_per_block: int = 16,
-    window: str = "hann",
-    threshold: float | None = None,
-    rpm_range: tuple[float, float] | None = None,
-) -> list[dict[str, Any]]:
-    """Average order spectrum (RMS amplitude) by angular resampling.
-
-    Each channel is resampled to ``samples_per_rev`` samples per revolution using the tachometer
-    pulses, then averaged with Welch's method over blocks of ``revs_per_block`` revolutions
-    (50 % overlap).
-
-    Args:
-        frame: A ChannelFrame with the vibration or sound channels.
-        tacho: A one-channel ChannelFrame with the tachometer pulses, same sampling rate.
-        pulses_per_rev: Pulses per revolution.
-        samples_per_rev: Samples per revolution; the highest order is ``samples_per_rev / 2``.
-        revs_per_block: Revolutions per block; the order resolution is ``1 / revs_per_block``.
-        window: Window name accepted by ``scipy.signal.get_window``.
-        threshold: Tachometer threshold (see :meth:`ExtrasFrame.rpm`).
-        rpm_range: Only average the part where the speed is within ``(rpm_lo, rpm_hi)``.
-
-    Returns:
-        One dict per channel with ``label``, ``unit``, ``db_ref``, ``order``, ``amplitude_rms``,
-        ``level_db``, ``d_order`` and ``n_averages``.
-    """
-    theta, tg, xa = _angle_resample(frame, tacho, pulses_per_rev, samples_per_rev, threshold)
-    if rpm_range is not None:
-        rpm_t = 60 / np.gradient(tg, theta)
-        xa = xa[:, (rpm_t >= rpm_range[0]) & (rpm_t <= rpm_range[1])]
-    nb = samples_per_rev * revs_per_block
-    order, p = sps.welch(xa, samples_per_rev, window=window, nperseg=nb, scaling="spectrum", axis=-1)
-    n_avg = (xa.shape[-1] - nb) // (nb // 2) + 1
-    out = []
-    for amp2, (label, unit, ref) in zip(p, channel_info(frame)):
-        amp = np.sqrt(amp2)
-        with np.errstate(divide="ignore"):
-            level = 20 * np.log10(amp / ref)
-        out.append(
-            {
-                "label": label,
-                "unit": unit,
-                "db_ref": ref,
-                "order": order,
-                "amplitude_rms": amp,
-                "level_db": level,
-                "d_order": 1 / revs_per_block,
-                "n_averages": int(n_avg),
-            }
-        )
-    return out
-
-
 def order_tracks(
     frame: Any,
     tacho: Any,

@@ -27,10 +27,18 @@ wandas 0.13.0 では `ExtrasFrame.from_numpy()` で作ってください。
 | `rpm` | 回転パルスから回転数の時間変化（単位 rpm の波形） |
 | `full_scale_fraction` | フルスケール付近（既定 99.9 % 以上）のサンプルの割合。`rms` と同じくチャンネルごとの配列 |
 | `amplitude_histogram` | [-full_scale, full_scale] の振幅分布（チャンネルごとの度数と区間の端） |
+| `angle_resample` | フレーム内の回転パルスのチャンネルを使い、ほかのチャンネルを等角度にリサンプリング。結果は `AngleFrame`（横軸は回転数 rev） |
+| `AngleFrame.order_spectrum` | 角度領域の Welch 平均による次数スペクトル（片振幅）。結果は `OrderSpectralFrame`（横軸は次数） |
+
+```python
+frame = ExtrasFrame.from_numpy(np.vstack([vib, tacho]), fs, ch_labels=["vib", "tacho"])
+spec = frame.angle_resample("tacho", samples_per_rev=64).order_spectrum(revs_per_block=16)
+spec.orders, spec.data  # 次数と片振幅。以前の order_spectrum の実効値は ÷√2（0 次とナイキストを除く）
+```
 
 | 関数 | 入力 | 内容 |
 |------|------|------|
-| `order_spectrum`, `order_tracks` | ChannelFrame と回転パルス | 角度リサンプリングによる平均次数スペクトルと次数トラッキング（実効値） |
+| `order_tracks` | ChannelFrame と回転パルス | 角度リサンプリングによる次数トラッキング（実効値） |
 | `modal_parameters` | 周波数応答関数（`transfer_function()` の 1 ch） | 固有振動数と減衰比（半値幅法、1 自由度＋剰余項の当てはめ） |
 
 ### wandas 本体に移ったもの
