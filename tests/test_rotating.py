@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import wandas as wd
 
-from wandas_extras import order_spectrum, order_tracks, pulse_times, rpm_profile
+from wandas_extras import order_spectrum, order_tracks
 
 FS = 8192
 
@@ -14,19 +14,6 @@ def _run_up(rpm0=600.0, rpm1=1800.0, seconds=8.0, orders=((1.0, 1.0), (3.0, 0.5)
     vib = sum(a * np.sin(2 * np.pi * o * rev) for o, a in orders)
     tacho = (np.mod(rev, 1.0) < 0.1).astype(float) * 5.0
     return wd.from_numpy(vib, FS, ch_units="m/s^2"), wd.from_numpy(tacho, FS, ch_units="V"), rev
-
-
-def test_pulse_times_and_rpm_profile_follow_the_run_up():
-    _, tacho, _ = _run_up()
-
-    t, revs = pulse_times(tacho)
-    prof = rpm_profile(tacho)
-
-    assert revs[1] - revs[0] == 1.0
-    expected = 600.0 + (1800.0 - 600.0) / 8.0 * prof["time_s"]
-    np.testing.assert_allclose(prof["rpm"], expected, rtol=5e-3)  # square pulses: edges quantised to 1 sample
-    assert prof["rpm_min"] == pytest.approx(prof["rpm"].min())
-    assert len(t) == len(revs)
 
 
 def test_order_spectrum_peaks_at_the_orders_with_rms_amplitude():
@@ -63,6 +50,6 @@ def test_order_tracks_are_flat_for_constant_order_amplitudes():
 def test_tacho_must_be_one_channel_with_pulses():
     vib, tacho, _ = _run_up()
     with pytest.raises(ValueError, match="one channel"):
-        rpm_profile(wd.from_numpy(np.vstack([np.asarray(tacho.data)] * 2), FS))
+        order_spectrum(vib, wd.from_numpy(np.vstack([np.asarray(tacho.data)] * 2), FS))
     with pytest.raises(ValueError, match="rising edges"):
-        rpm_profile(wd.from_numpy(np.zeros(FS), FS))
+        order_spectrum(vib, wd.from_numpy(np.zeros(len(vib.data)), FS))
