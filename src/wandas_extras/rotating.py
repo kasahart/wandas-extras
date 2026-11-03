@@ -8,6 +8,7 @@ import numpy as np
 from scipy import signal as sps
 
 from wandas_extras._frame import channel_info, channel_rows
+from wandas_extras.operations import rising_edge_times
 
 
 def _tacho_row(tacho: Any) -> np.ndarray:
@@ -17,44 +18,15 @@ def _tacho_row(tacho: Any) -> np.ndarray:
     return np.asarray(rows[0], dtype=float)
 
 
-def pulse_times(tacho: Any, pulses_per_rev: int = 1, threshold: float | None = None) -> tuple[np.ndarray, np.ndarray]:
-    """Times of the rising edges of a tachometer signal and the revolution count at each edge.
-
-    Args:
-        tacho: A one-channel ChannelFrame with the tachometer pulses.
-        pulses_per_rev: Pulses per revolution.
-        threshold: Level of a rising edge in the channel unit. Defaults to the midpoint of the
-            minimum and maximum.
-
-    Returns:
-        ``(time_s, revolutions)``. Edge times are refined by linear interpolation between samples.
-    """
-    x = _tacho_row(tacho)
-    fs = float(tacho.sampling_rate)
-    thr = 0.5 * (np.max(x) + np.min(x)) if threshold is None else threshold
-    edges = np.flatnonzero((x[1:] > thr) & (x[:-1] <= thr)) + 1
-    if len(edges) < 3:
-        raise ValueError("fewer than 3 rising edges in the tachometer signal; check threshold")
-    frac = (thr - x[edges - 1]) / (x[edges] - x[edges - 1])
-    t = (edges - 1 + frac) / fs
+def _pulse_revs(tacho: Any, pulses_per_rev: int, threshold: float | None) -> tuple[np.ndarray, np.ndarray]:
+    t = rising_edge_times(_tacho_row(tacho), float(tacho.sampling_rate), threshold)
     return t, np.arange(len(t)) / pulses_per_rev
-
-
-def rpm_profile(tacho: Any, pulses_per_rev: int = 1, threshold: float | None = None) -> dict[str, Any]:
-    """Rotational speed between successive tachometer pulses.
-
-    Returns:
-        ``time_s`` (midpoint of each pulse interval), ``rpm``, ``rpm_min`` and ``rpm_max``.
-    """
-    t, rev = pulse_times(tacho, pulses_per_rev, threshold)
-    rpm = 60 * np.diff(rev) / np.diff(t)
-    return {"time_s": 0.5 * (t[1:] + t[:-1]), "rpm": rpm, "rpm_min": float(rpm.min()), "rpm_max": float(rpm.max())}
 
 
 def _angle_resample(frame: Any, tacho: Any, pulses_per_rev: int, samples_per_rev: int, threshold: float | None):
     if float(tacho.sampling_rate) != float(frame.sampling_rate):
         raise ValueError("frame and tacho must have the same sampling rate")
-    t, rev = pulse_times(tacho, pulses_per_rev, threshold)
+    t, rev = _pulse_revs(tacho, pulses_per_rev, threshold)
     theta = np.arange(rev[0], rev[-1], 1 / samples_per_rev)
     tg = np.interp(theta, rev, t)
     rows = channel_rows(frame)
@@ -86,7 +58,7 @@ def order_spectrum(
         samples_per_rev: Samples per revolution; the highest order is ``samples_per_rev / 2``.
         revs_per_block: Revolutions per block; the order resolution is ``1 / revs_per_block``.
         window: Window name accepted by ``scipy.signal.get_window``.
-        threshold: Tachometer threshold (see :func:`pulse_times`).
+        threshold: Tachometer threshold (see :meth:`ExtrasFrame.rpm`).
         rpm_range: Only average the part where the speed is within ``(rpm_lo, rpm_hi)``.
 
     Returns:
