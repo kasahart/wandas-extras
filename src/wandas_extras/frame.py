@@ -15,13 +15,22 @@ import dask.array as da
 import numpy as np
 from wandas.core.metadata import ChannelCalibration
 from wandas.frames.channel import ChannelFrame
+from wandas.frames.spectral import SpectralFrame
 from wandas.pipeline import RecipeRegistry, default_recipe_registry, recipe_definition, recipe_operation
+from wandas.processing import Welch
 
-from wandas_extras.operations import TachoRpm, validate_rpm_params
+from wandas_extras.operations import AngleResample, TachoRpm, angle_sample_times, validate_rpm_params
 
 
 def _validate_rpm(params: Mapping[str, Any]) -> None:
     validate_rpm_params(params.get("pulses_per_rev", 1), params.get("threshold"))
+
+
+def _validate_angle_resample(params: Mapping[str, Any]) -> None:
+    validate_rpm_params(params.get("pulses_per_rev", 1), params.get("threshold"))
+    spr = params.get("samples_per_rev", 64)
+    if isinstance(spr, bool) or not isinstance(spr, int) or spr < 2:
+        raise ValueError(f"samples_per_rev must be an integer of at least 2, got {spr!r}")
 
 
 class ExtrasFrame(ChannelFrame):
@@ -91,10 +100,119 @@ class ExtrasFrame(ChannelFrame):
         edges = np.linspace(-full_scale, full_scale, bins + 1)
         return np.asarray(da.stack(counts).compute()), edges
 
+    @recipe_operation("wandas_extras.channel.angle_resample", validate_params=_validate_angle_resample)
+    def angle_resample(
+        self,
+        tacho: int | str = -1,
+        pulses_per_rev: int = 1,
+        samples_per_rev: int = 64,
+        threshold: float | None = None,
+        rpm_range: tuple[float, float] | None = None,
+    ) -> AngleFrame:
+        """Resample the channels at equal shaft angles, using a tachometer channel of this frame.
+
+        Like ``trigger()``, only the tachometer channel is computed to find the pulses; the other
+        channels stay lazy. The angles run from the first to the last rising edge in steps of
+        ``1 / samples_per_rev`` revolution, and each channel is linearly interpolated at the times
+        of those angles. A Recipe records these arguments, so replaying it finds the pulses of its
+        own input again.
+
+        Args:
+            tacho: Index or label of the tachometer channel. It is left out of the result.
+            pulses_per_rev: Pulses per revolution.
+            samples_per_rev: Samples per revolution; the highest order is ``samples_per_rev / 2``.
+            threshold: Level of a rising edge (see :meth:`rpm`).
+            rpm_range: Keep only the angles where the speed is within ``(rpm_lo, rpm_hi)``. The kept
+                parts are joined end to end.
+
+        Returns:
+            An AngleFrame whose sample axis is revolutions (``sampling_rate`` is samples per
+            revolution) with the other channels.
+        """
+        (index,) = self._channel_indices(tacho)
+        index %= self.n_channels
+        if self.n_channels < 2:
+            raise ValueError("angle_resample needs a tachometer channel and at least one other channel")
+        times = angle_sample_times(
+            np.asarray(self._float_data[index].compute()),
+            float(self.sampling_rate),
+            pulses_per_rev,
+            samples_per_rev,
+            threshold,
+            rpm_range,
+        )
+        keep = [i for i in range(self.n_channels) if i != index]
+        channel_metadata = self._metadata_after_analysis()
+        operation = AngleResample(self.sampling_rate, sample_times=times, drop_channel=index)
+        return self._apply_operation_instance(
+            operation,
+            output_frame_class=AngleFrame,
+            frame_metadata_updates={
+                "sampling_rate": float(samples_per_rev),
+                "channel_metadata": [channel_metadata[i] for i in keep],
+                "channel_ids": [self._channel_ids[i] for i in keep],
+                "source_time_offset": 0.0,
+            },
+        )
+
+
+class AngleFrame(ExtrasFrame):
+    """Channels sampled at equal shaft angles, from :meth:`ExtrasFrame.angle_resample`.
+
+    ``sampling_rate`` is samples per revolution, so ``time`` counts revolutions from the start of
+    the resampled signal, and every ChannelFrame method works per revolution instead of per
+    second. A spectrum of this frame is over orders.
+    """
+
+    @property
+    def revolutions(self) -> np.ndarray:
+        """Revolutions of each sample from the start of the resampled signal (same as ``time``)."""
+        return self.time
+
+    def plot(self, *args: Any, xlabel: str | None = None, **kwargs: Any) -> Any:
+        """Plot like ChannelFrame, with revolutions on the x-axis."""
+        return super().plot(*args, xlabel=xlabel or "Revolutions [rev]", **kwargs)
+
+    @recipe_operation("wandas_extras.angle.order_spectrum")
+    def order_spectrum(self, revs_per_block: int = 16, window: str = "hann") -> OrderSpectralFrame:
+        """Welch-averaged order spectrum (peak amplitude, like ``welch()``).
+
+        Blocks of ``revs_per_block`` revolutions overlap by half. The order resolution is
+        ``1 / revs_per_block``.
+        """
+        n_fft = int(self.sampling_rate) * revs_per_block
+        operation = Welch(self.sampling_rate, n_fft=n_fft, hop_length=n_fft // 2, window=window)
+        channel_metadata = self._metadata_after_analysis()
+        return self._apply_operation_instance(
+            operation,
+            output_frame_class=OrderSpectralFrame,
+            output_frame_kwargs={"n_fft": n_fft, "window": window, "win_length": n_fft},
+            frame_metadata_updates={"channel_metadata": channel_metadata},
+        )
+
+
+class OrderSpectralFrame(SpectralFrame):
+    """A spectrum over orders (cycles per revolution), from :meth:`AngleFrame.order_spectrum`.
+
+    ``freqs`` holds the orders; ``orders`` is the same array under its proper name.
+    """
+
+    @property
+    def orders(self) -> np.ndarray:
+        """Orders of the bins [cycles per revolution]."""
+        return np.asarray(self.freqs)
+
+    def plot(self, *args: Any, xlabel: str | None = None, **kwargs: Any) -> Any:
+        """Plot like SpectralFrame, with orders on the x-axis."""
+        return super().plot(*args, xlabel=xlabel or "Order", **kwargs)
+
 
 def recipe_registry() -> RecipeRegistry:
     """The default wandas Recipe registry plus the ExtrasFrame methods.
 
     Pass it to ``RecipePlan.from_frame``, ``RecipePlan.load`` and ``RecipePlan.apply``.
     """
-    return default_recipe_registry().with_operation(recipe_definition(ExtrasFrame.rpm))
+    registry = default_recipe_registry()
+    for method in (ExtrasFrame.rpm, ExtrasFrame.angle_resample, AngleFrame.order_spectrum):
+        registry = registry.with_operation(recipe_definition(method))
+    return registry

@@ -6,14 +6,15 @@ leave it unchanged, and are being moved onto ExtrasFrame one by one. Analyses th
 has (peak, kurtosis, find_peaks, spectral_kurtosis, integrate, envelope) are not repeated here.
 """
 
-from wandas_extras.frame import ExtrasFrame, recipe_registry
+from wandas_extras.frame import AngleFrame, ExtrasFrame, OrderSpectralFrame, recipe_registry
 from wandas_extras.modal import modal_parameters
-from wandas_extras.rotating import order_spectrum, order_tracks
+from wandas_extras.rotating import order_tracks
 
 __all__ = [
+    "AngleFrame",
     "ExtrasFrame",
+    "OrderSpectralFrame",
     "modal_parameters",
-    "order_spectrum",
     "order_tracks",
     "recipe_registry",
 ]

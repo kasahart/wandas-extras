@@ -5,7 +5,7 @@ import pytest
 import wandas as wd
 from wandas.pipeline import RecipePlan
 
-from wandas_extras import ExtrasFrame, recipe_registry
+from wandas_extras import AngleFrame, ExtrasFrame, OrderSpectralFrame, recipe_registry
 
 FS = 8192
 
@@ -112,3 +112,71 @@ def test_envelope_spectrum_is_a_wandas_chain():
     i = int(np.argmin(np.abs(spec.freqs - 100.0)))
     assert spec.freqs[np.argmax(amp[1:]) + 1] == pytest.approx(100.0)
     assert amp[i] == pytest.approx(0.5, rel=0.02)  # peak amplitude of the modulation
+
+
+def _run_up_frame(seconds=8.0, orders=((1.0, 1.0), (3.0, 0.5))):
+    """Vibration made of fixed orders (peak amplitudes) during a run-up, with the tacho as channel 'tacho'."""
+    tacho, _ = _run_up_tacho(seconds=seconds)
+    t = np.arange(len(tacho)) / FS
+    rev = (600.0 * t + 0.5 * 1200.0 / seconds * t**2) / 60
+    vib = sum(a * np.sin(2 * np.pi * o * rev) for o, a in orders)
+    return _frame(np.vstack([vib, tacho]), ch_labels=["vib", "tacho"], ch_units=["m/s^2", "V"])
+
+
+def test_angle_resample_drops_the_tacho_and_counts_revolutions():
+    frame = _run_up_frame()
+
+    angle = frame.angle_resample("tacho", samples_per_rev=64)
+
+    assert type(angle) is AngleFrame
+    assert angle.sampling_rate == 64
+    assert [ch.label for ch in angle.channels] == ["vib"]
+    assert angle.channels[0].unit == "m/s^2"
+    assert angle.revolutions[1] == pytest.approx(1 / 64)
+    # 600 -> 1800 rpm in 8 s is 160 revolutions; the angles span first to last pulse
+    assert angle.n_samples / 64 == pytest.approx(159, abs=1)
+
+
+def test_order_spectrum_peaks_at_the_orders_with_peak_amplitude():
+    angle = _run_up_frame().angle_resample("tacho")
+
+    spec = angle.order_spectrum(revs_per_block=16, window="flattop")
+
+    assert type(spec) is OrderSpectralFrame
+    amp = np.abs(np.asarray(spec.data))
+    for order, a in ((1.0, 1.0), (3.0, 0.5)):
+        assert amp[int(np.argmin(np.abs(spec.orders - order)))] == pytest.approx(a, rel=0.01)
+    assert spec.orders[1] == pytest.approx(1 / 16)
+
+
+def test_rpm_range_keeps_only_that_speed():
+    frame = _run_up_frame()
+
+    full = frame.angle_resample("tacho")
+    part = frame.angle_resample("tacho", rpm_range=(1000.0, 1400.0))
+
+    # revolutions between 1000 and 1400 rpm in a linear run-up: (1400^2 - 1000^2) / (2 * 150 * 60)
+    assert part.n_samples / 64 == pytest.approx((1400**2 - 1000**2) / (2 * 150 * 60), rel=0.02)
+    assert part.n_samples < full.n_samples
+
+
+def test_angle_resample_needs_another_channel():
+    tacho, _ = _run_up_tacho()
+    with pytest.raises(ValueError, match="at least one other channel"):
+        _frame(tacho).angle_resample(0)
+
+
+def test_order_spectrum_replays_from_a_recipe():
+    registry = recipe_registry()
+    frame = _run_up_frame()
+    processed = frame.angle_resample("tacho", samples_per_rev=32).order_spectrum(revs_per_block=8)
+    plan = RecipePlan.from_dict(
+        RecipePlan.from_frame(processed, input_names=("signal",), registry=registry).to_dict(), registry=registry
+    )
+
+    other = _run_up_frame(seconds=6.0, orders=((2.0, 1.0),))
+    replayed = plan.apply({"signal": other}, registry=registry)
+
+    expected = other.angle_resample("tacho", samples_per_rev=32).order_spectrum(revs_per_block=8)
+    assert type(replayed) is OrderSpectralFrame
+    np.testing.assert_allclose(np.asarray(replayed.data), np.asarray(expected.data))
