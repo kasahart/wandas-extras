@@ -23,6 +23,7 @@ dependencies = [
     "wandas>=0.13",
     "numpy",
     "scipy>=1.13.0",
+    "pandas",
 ]
 
 [project.urls]

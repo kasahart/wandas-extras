@@ -13,6 +13,7 @@ from typing import Any
 
 import dask.array as da
 import numpy as np
+import pandas as pd
 from wandas.core.metadata import ChannelCalibration
 from wandas.frames.channel import ChannelFrame
 from wandas.frames.spectral import SpectralFrame
@@ -129,6 +130,60 @@ class ExtrasFrame(ChannelFrame):
             An AngleFrame whose sample axis is revolutions (``sampling_rate`` is samples per
             revolution) with the other channels.
         """
+        index, times = self._angle_sample_times(tacho, pulses_per_rev, samples_per_rev, threshold, rpm_range)
+        return self._angle_frame(index, times, samples_per_rev)
+
+    def order_tracks(
+        self,
+        orders: list[float],
+        tacho: int | str = -1,
+        pulses_per_rev: int = 1,
+        samples_per_rev: int = 64,
+        revs_per_block: int = 8,
+        window: str = "hann",
+        threshold: float | None = None,
+    ) -> pd.DataFrame:
+        """Peak amplitude of the given orders against rotational speed (order tracking).
+
+        The channels are resampled as in :meth:`angle_resample`, then transformed by the wandas
+        STFT in blocks of ``revs_per_block`` revolutions with half overlap. Only blocks that lie
+        wholly inside the resampled signal are used. For each order the largest bin among the
+        nearest bin and its neighbours is taken, so an order between bins is not under-read. Like
+        ``find_peaks()``, this computes the data and returns a table, not a Frame.
+
+        Returns:
+            A long table with columns ``channel`` (label), ``rpm`` (mean speed of the block),
+            ``order`` and ``amplitude`` (peak, in the channel unit), one row per channel, block and
+            order.
+        """
+        angle = self.angle_resample(tacho, pulses_per_rev, samples_per_rev, threshold)
+        _, times = self._angle_sample_times(tacho, pulses_per_rev, samples_per_rev, threshold, None)
+        n_fft = samples_per_rev * revs_per_block
+        spec = angle.stft(n_fft=n_fft, hop_length=n_fft // 2, window=window)
+        starts = np.rint(np.asarray(spec.times) * samples_per_rev).astype(int) - n_fft // 2
+        full = (starts >= 0) & (starts + n_fft <= angle.n_samples)
+        starts = starts[full]
+        rpm = 60 * revs_per_block / (times[starts + n_fft - 1] - times[starts])
+        amp = np.abs(np.asarray(spec.data)).reshape(angle.n_channels, len(spec.freqs), -1)[..., full]
+        bins = [int(np.argmin(np.abs(np.asarray(spec.freqs) - o))) for o in orders]
+        rows = []
+        for channel, a in zip(angle.channels, amp, strict=True):
+            for order, k in zip(orders, bins, strict=True):
+                track = np.max(a[max(k - 1, 0) : k + 2], axis=0)
+                rows.append(
+                    pd.DataFrame({"channel": channel.label, "rpm": rpm, "order": float(order), "amplitude": track})
+                )
+        return pd.concat(rows, ignore_index=True)
+
+    def _angle_sample_times(
+        self,
+        tacho: int | str,
+        pulses_per_rev: int,
+        samples_per_rev: int,
+        threshold: float | None,
+        rpm_range: tuple[float, float] | None,
+    ) -> tuple[int, np.ndarray]:
+        """Index of the tachometer channel and the times of equal angles (computes that channel only)."""
         (index,) = self._channel_indices(tacho)
         index %= self.n_channels
         if self.n_channels < 2:
@@ -141,6 +196,9 @@ class ExtrasFrame(ChannelFrame):
             threshold,
             rpm_range,
         )
+        return index, times
+
+    def _angle_frame(self, index: int, times: np.ndarray, samples_per_rev: int) -> AngleFrame:
         keep = [i for i in range(self.n_channels) if i != index]
         channel_metadata = self._metadata_after_analysis()
         operation = AngleResample(self.sampling_rate, sample_times=times, drop_channel=index)
