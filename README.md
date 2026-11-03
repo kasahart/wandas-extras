@@ -25,16 +25,25 @@ wandas 0.13.0 では `ExtrasFrame.from_numpy()` で作ってください。
 | ExtrasFrame のメソッド | 内容 |
 |------|------|
 | `rpm` | 回転パルスから回転数の時間変化（単位 rpm の波形） |
+| `full_scale_fraction` | フルスケール付近（既定 99.9 % 以上）のサンプルの割合。`rms` と同じくチャンネルごとの配列 |
+| `amplitude_histogram` | [-full_scale, full_scale] の振幅分布（チャンネルごとの度数と区間の端） |
 
 | 関数 | 入力 | 内容 |
 |------|------|------|
-| `spectral_peaks` | SpectralFrame | スペクトルの山の周波数・振幅・突出量（dB の放物線補間も可） |
-| `integrate` | ChannelFrame | 周波数領域の積分・微分と帯域制限（加速度 → 速度など）。結果は ChannelFrame |
 | `order_spectrum`, `order_tracks` | ChannelFrame と回転パルス | 角度リサンプリングによる平均次数スペクトルと次数トラッキング（実効値） |
-| `spectral_kurtosis` | ChannelFrame | STFT によるスペクトル尖度（衝撃的な成分が強い帯域を探す） |
-| `envelope_spectrum` | ChannelFrame | 帯域通過 → 包絡線 → スペクトル（軸受・ギアの故障周波数） |
 | `modal_parameters` | 周波数応答関数（`transfer_function()` の 1 ch） | 固有振動数と減衰比（半値幅法、1 自由度＋剰余項の当てはめ） |
-| `signal_stats` | ChannelFrame | RMS、ピーク、波高率、直流分、尖度、dB 値、フルスケール付近のサンプルの割合と振幅分布 |
+
+### wandas 本体に移ったもの
+
+次の解析は wandas 0.13.0 に入ったので、ここからは外しました。wandas のメソッドを使ってください。
+
+| 以前の関数 | wandas |
+|------|------|
+| `signal_stats` | `frame.rms`, `frame.peak`, `frame.crest_factor`, `frame.kurtosis`。フルスケールの確認は上の 2 メソッド |
+| `spectral_peaks` | `frame.welch().find_peaks(...)` |
+| `spectral_kurtosis` | `frame.stft(...).spectral_kurtosis` |
+| `integrate` | `frame.integrate().high_pass_filter(cutoff=...)` |
+| `envelope_spectrum` | `frame.band_pass_filter(lo, hi).envelope().remove_dc().fft()`（振幅はピーク値。以前の実効値は ÷√2） |
 
 ## 決めごと
 

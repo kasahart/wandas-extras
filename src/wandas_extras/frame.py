@@ -11,6 +11,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+import dask.array as da
+import numpy as np
 from wandas.core.metadata import ChannelCalibration
 from wandas.frames.channel import ChannelFrame
 from wandas.pipeline import RecipeRegistry, default_recipe_registry, recipe_definition, recipe_operation
@@ -56,6 +58,38 @@ class ExtrasFrame(ChannelFrame):
             operation,
             frame_metadata_updates={"channel_metadata": channel_metadata},
         )
+
+    def full_scale_fraction(self, full_scale: float, level: float = 0.999) -> np.ndarray:
+        """Share of samples at or above ``level * full_scale`` in magnitude, for each channel.
+
+        A scalar reduction like ``rms``: it computes now, returns a NumPy array of shape
+        ``(n_channels,)`` and adds no lineage. Use it with ``peak / full_scale`` to judge clipping.
+
+        Args:
+            full_scale: Full-scale value of the recording in the channel unit (for example the
+                calibrated value of digital full scale).
+            level: Fraction of full scale that counts as "at full scale".
+        """
+        if full_scale <= 0:
+            raise ValueError(f"full_scale must be positive, got {full_scale!r}")
+        near = da.absolute(self._float_data) >= level * full_scale
+        return np.asarray(near.mean(axis=-1).compute(), dtype=float)
+
+    def amplitude_histogram(self, full_scale: float, bins: int = 50) -> tuple[np.ndarray, np.ndarray]:
+        """Histogram of the sample values over ``[-full_scale, full_scale]``, for each channel.
+
+        A scalar reduction like ``rms``: it computes now and adds no lineage. Samples outside the
+        range are not counted.
+
+        Returns:
+            ``(counts, edges)``: counts of shape ``(n_channels, bins)`` and the ``bins + 1`` edges.
+        """
+        if full_scale <= 0:
+            raise ValueError(f"full_scale must be positive, got {full_scale!r}")
+        rows = self._float_data
+        counts = [da.histogram(rows[i], bins=bins, range=(-full_scale, full_scale))[0] for i in range(self.n_channels)]
+        edges = np.linspace(-full_scale, full_scale, bins + 1)
+        return np.asarray(da.stack(counts).compute()), edges
 
 
 def recipe_registry() -> RecipeRegistry:
