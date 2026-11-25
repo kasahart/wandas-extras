@@ -47,7 +47,7 @@ class TachoRpm(ChannelIndependentAudioOperation[NDArrayReal, NDArrayReal]):
     def calculate_output_dtype(self, input_dtype: np.dtype[Any], *input_dtypes: np.dtype[Any]) -> np.dtype[Any]:
         return precision_real_dtype(input_dtype)
 
-    def _process(self, data: NDArrayReal) -> NDArrayReal:  # ty: ignore[invalid-mutable-override]
+    def _process(self, data: NDArrayReal) -> NDArrayReal:
         fs = float(self.sampling_rate)
         ppr = int(self._config_value("pulses_per_rev"))
         threshold = self._config_value("threshold")
@@ -104,7 +104,7 @@ class AngleResample(AudioOperation[NDArrayReal, NDArrayReal]):
     def calculate_output_dtype(self, input_dtype: np.dtype[Any], *input_dtypes: np.dtype[Any]) -> np.dtype[Any]:
         return precision_real_dtype(input_dtype)
 
-    def _process(self, data: NDArrayReal) -> NDArrayReal:  # ty: ignore[invalid-mutable-override]
+    def _process(self, data: NDArrayReal) -> NDArrayReal:
         times = self._config_value("sample_times")
         rows = np.delete(np.atleast_2d(np.asarray(data, dtype=float)), int(self._config_value("drop_channel")), axis=0)
         t_samples = np.arange(rows.shape[-1]) / float(self.sampling_rate)

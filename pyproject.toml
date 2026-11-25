@@ -31,10 +31,12 @@ Repository = "https://github.com/kasahart/wandas-extras.git"
 Issues = "https://github.com/kasahart/wandas-extras/issues"
 
 [dependency-groups]
+# ruff and ty are pinned to the versions in wandas' uv.lock: a new release can fail the checks
+# with no change here. Raise them together with wandas.
 test = [
     "pytest>=8.3.5",
-    "ruff>=0.9.9",
-    "ty>=0.0.26",
+    "ruff==0.14.4",
+    "ty==0.0.26",
 ]
 
 [tool.hatch.build.targets.wheel]
