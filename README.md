@@ -34,6 +34,9 @@ spec = frame.angle_resample("tacho", samples_per_rev=64).order_spectrum(revs_per
 spec.orders, spec.data  # 次数と片振幅。以前の order_spectrum の実効値は ÷√2（0 次とナイキストを除く）
 ```
 
+`angle_resample` は折り返しを防ぐフィルタをかけません。`samples_per_rev / 2` 次より上の成分は低い次数に紛れ込みます。
+その上限の周波数は回転が遅いほど下がるので、回転パルス以外のチャンネルを、先に `low_pass_filter` で `samples_per_rev / 2 × 最低回転数 / 60` Hz より十分下に絞ってください。最低回転数は残す区間でいちばん遅い回転数で、`rpm_range` で上げられます。フィルタの遷移帯の分の余裕も取ります（64 サンプル／回転、最低 600 rpm なら上限は 320 Hz）。
+
 | 関数 | 入力 | 内容 |
 |------|------|------|
 | `modal_parameters` | 周波数応答関数（`transfer_function()` の 1 ch） | 固有振動数と減衰比（半値幅法、1 自由度＋剰余項の当てはめ） |
