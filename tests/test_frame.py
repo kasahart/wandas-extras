@@ -230,3 +230,20 @@ def test_recipe_registry_has_every_decorated_method():
         f"{missing} carry @recipe_operation but recipe_registry() does not register them; "
         "add their class to the tuple in recipe_operations() (src/wandas_extras/frame.py)"
     )
+
+
+def test_angle_arguments_are_checked_where_they_are_given():
+    frame = _run_up_frame()
+
+    with pytest.raises(ValueError, match="samples_per_rev"):
+        frame.angle_resample("tacho", samples_per_rev=2.5)
+    with pytest.raises(ValueError, match="pulses_per_rev"):
+        frame.order_tracks([1.0], tacho="tacho", pulses_per_rev=0)
+    with pytest.raises(
+        ValueError, match=r"rpm_range=\(5000.0, 6000.0\) keeps no angles: the speed runs from 6\d\d to 1\d{3}"
+    ):
+        frame.angle_resample("tacho", rpm_range=(5000.0, 6000.0))
+    with pytest.raises(ValueError, match="keeps no angles"):
+        frame.angle_resample("tacho", rpm_range=(1400.0, 1000.0))
+    with pytest.raises(ValueError, match=r"orders \[40.0\] are outside 0 to samples_per_rev / 2 = 32"):
+        frame.order_tracks([1.0, 40.0], tacho="tacho")
