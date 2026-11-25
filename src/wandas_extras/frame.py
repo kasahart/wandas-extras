@@ -124,6 +124,10 @@ class ExtrasFrame(ChannelFrame):
         of those angles. A Recipe records these arguments, so replaying it finds the pulses of its
         own input again.
 
+        No anti-alias filter is applied: content above order ``samples_per_rev / 2`` folds into
+        lower orders. Low-pass the other channels first (not the tachometer channel) below
+        ``samples_per_rev / 2 * max_rpm / 60`` Hz, for example with ``low_pass_filter``.
+
         Args:
             tacho: Index or label of the tachometer channel. It is left out of the result.
             pulses_per_rev: Pulses per revolution.
