@@ -1,7 +1,7 @@
 # wandas-extras
 
 [wandas](https://github.com/kasahart/wandas) にまだない解析機能を、暫定的に置いておくパッケージです。
-インターフェースが固まった機能は wandas 本体へ移し、移したあともしばらくは同じ名前で呼べるようにします。
+インターフェースが固まった機能は wandas 本体へ移します。
 
 新しい解析は `ChannelFrame` を継承した `ExtrasFrame` のメソッドとして作ります。wandas の独自処理ガイドにある拡張方法です。
 読み込みから解析までが wandas と同じチェーンになり、結果は遅延評価のまま lineage を引き継ぎます。
@@ -15,7 +15,7 @@ tacho = ExtrasFrame.read_wav("tacho.wav")
 rpm = tacho.rpm(pulses_per_rev=1)  # 回転数の ChannelFrame（単位 rpm）
 ```
 
-`modal_parameters` は、FRF のフレームを受け取ってモードの表を返す関数です。
+`modal_parameters` は、FRF のフレームを受け取り、モードごとの辞書のリストを返す関数です（まだメソッドにしていません）。
 
 ## 機能
 

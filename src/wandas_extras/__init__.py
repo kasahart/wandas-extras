@@ -1,8 +1,8 @@
 """Provisional analyses for wandas frames.
 
 New analyses are methods of :class:`ExtrasFrame`, a ChannelFrame subclass, so they keep their
-name and arguments when they move into wandas. The remaining functions take a wandas frame,
-leave it unchanged, and are being moved onto ExtrasFrame one by one. Analyses that wandas now
+name and arguments when they move into wandas. The one remaining function, modal_parameters,
+takes a wandas frame and leaves it unchanged. Analyses that wandas now
 has (peak, kurtosis, find_peaks, spectral_kurtosis, integrate, envelope) are not repeated here.
 """
 
