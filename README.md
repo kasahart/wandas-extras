@@ -15,9 +15,6 @@ tacho = ExtrasFrame.read_wav("tacho.wav")
 rpm = tacho.rpm(pulses_per_rev=1)  # 回転数の ChannelFrame（単位 rpm）
 ```
 
-`ExtrasFrame.read_wav()` などの読み込みが `ExtrasFrame` を返すのは、wandas 0.13.0 の次のリリース（kasahart/wandas#644）からです。
-wandas 0.13.0 では `ExtrasFrame.from_numpy()` で作ってください。
-
 `modal_parameters` は、FRF のフレームを受け取ってモードの表を返す関数です。
 
 ## 機能
