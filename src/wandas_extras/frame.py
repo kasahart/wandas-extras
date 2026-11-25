@@ -162,6 +162,12 @@ class ExtrasFrame(ChannelFrame):
             ``order`` and ``amplitude`` (peak, in the channel unit), one row per channel, block and
             order.
         """
+        too_high = [o for o in orders if not 0 <= o <= samples_per_rev / 2]
+        if too_high:
+            raise ValueError(
+                f"orders {too_high} are outside 0 to samples_per_rev / 2 = {samples_per_rev / 2:g}; "
+                "raise samples_per_rev to track higher orders"
+            )
         angle = self.angle_resample(tacho, pulses_per_rev, samples_per_rev, threshold)
         _, times = self._angle_sample_times(tacho, pulses_per_rev, samples_per_rev, threshold, None)
         n_fft = samples_per_rev * revs_per_block
@@ -190,6 +196,9 @@ class ExtrasFrame(ChannelFrame):
         rpm_range: tuple[float, float] | None,
     ) -> tuple[int, np.ndarray]:
         """Index of the tachometer channel and the times of equal angles (computes that channel only)."""
+        _validate_angle_resample(
+            {"pulses_per_rev": pulses_per_rev, "samples_per_rev": samples_per_rev, "threshold": threshold}
+        )
         (index,) = self._channel_indices(tacho)
         index %= self.n_channels
         if self.n_channels < 2:

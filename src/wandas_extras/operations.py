@@ -81,7 +81,13 @@ def angle_sample_times(
     times = np.interp(theta, rev, t)
     if rpm_range is not None:
         rpm = 60 / np.gradient(times, theta)
-        times = times[(rpm >= rpm_range[0]) & (rpm <= rpm_range[1])]
+        keep = (rpm >= rpm_range[0]) & (rpm <= rpm_range[1])
+        if keep.sum() < 2:
+            raise ValueError(
+                f"rpm_range={tuple(rpm_range)} keeps no angles: the speed runs from {rpm.min():.0f} to "
+                f"{rpm.max():.0f} rpm; give (rpm_lo, rpm_hi) inside that span"
+            )
+        times = times[keep]
     return times
 
 
