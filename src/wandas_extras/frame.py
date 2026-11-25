@@ -181,7 +181,8 @@ class ExtrasFrame(ChannelFrame):
         starts = np.rint(np.asarray(spec.times) * samples_per_rev).astype(int) - n_fft // 2
         full = (starts >= 0) & (starts + n_fft <= angle.n_samples)
         starts = starts[full]
-        rpm = 60 * revs_per_block / (times[starts + n_fft - 1] - times[starts])
+        # The first and last sample of a block are n_fft - 1 steps, (n_fft - 1) / samples_per_rev revolutions, apart.
+        rpm = 60 * (n_fft - 1) / samples_per_rev / (times[starts + n_fft - 1] - times[starts])
         amp = np.abs(np.asarray(spec.data)).reshape(angle.n_channels, len(spec.freqs), -1)[..., full]
         bins = [int(np.argmin(np.abs(np.asarray(spec.freqs) - o))) for o in orders]
         rows = []

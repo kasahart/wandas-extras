@@ -247,3 +247,15 @@ def test_angle_arguments_are_checked_where_they_are_given():
         frame.angle_resample("tacho", rpm_range=(1400.0, 1000.0))
     with pytest.raises(ValueError, match=r"orders \[40.0\] are outside 0 to samples_per_rev / 2 = 32"):
         frame.order_tracks([1.0, 40.0], tacho="tacho")
+
+
+@pytest.mark.parametrize(("samples_per_rev", "revs_per_block"), [(64, 8), (16, 1)])
+def test_order_tracks_rpm_is_the_shaft_speed(samples_per_rev, revs_per_block):
+    t = np.arange(FS * 4) / FS
+    rev = 20.0 * t  # 1200 rpm
+    tacho = (np.mod(rev, 1.0) < 0.1).astype(float) * 5.0
+    frame = _frame(np.vstack([np.sin(2 * np.pi * 3 * rev), tacho]), ch_labels=["vib", "tacho"])
+
+    tracks = frame.order_tracks([3.0], tacho="tacho", samples_per_rev=samples_per_rev, revs_per_block=revs_per_block)
+
+    np.testing.assert_allclose(tracks["rpm"], 1200.0, rtol=2e-3)  # edges quantised to 1 sample
