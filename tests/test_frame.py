@@ -1,8 +1,9 @@
 import numpy as np
 import pytest
 import wandas as wd
-from wandas.pipeline import RecipePlan
+from wandas.pipeline import RecipePlan, recipe_definition
 
+import wandas_extras.frame as extras_frame
 from wandas_extras import AngleFrame, ExtrasFrame, OrderSpectralFrame, recipe_registry
 
 FS = 8192
@@ -210,3 +211,22 @@ def test_order_tracks_read_an_order_between_bins():
     tracks = frame.order_tracks([3.03], tacho="tacho", revs_per_block=8, window="flattop")
 
     np.testing.assert_allclose(tracks["amplitude"], 0.5, rtol=0.01)
+
+
+def test_recipe_registry_has_every_decorated_method():
+    """Rule: every @recipe_operation method of a wandas-extras Frame is replayable with recipe_registry()."""
+    registered = {op.operation_id for op in recipe_registry().operations}
+    frames = [c for c in vars(extras_frame).values() if isinstance(c, type) and c.__module__ == extras_frame.__name__]
+    missing = []
+    for cls in frames:
+        for name, value in vars(cls).items():
+            try:
+                operation_id = recipe_definition(value).operation_id
+            except TypeError:
+                continue
+            if operation_id not in registered:
+                missing.append(f"{cls.__name__}.{name}")
+    assert not missing, (
+        f"{missing} carry @recipe_operation but recipe_registry() does not register them; "
+        "add their class to the tuple in recipe_operations() (src/wandas_extras/frame.py)"
+    )

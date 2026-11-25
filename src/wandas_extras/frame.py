@@ -17,7 +17,13 @@ import pandas as pd
 from wandas.core.metadata import ChannelCalibration
 from wandas.frames.channel import ChannelFrame
 from wandas.frames.spectral import SpectralFrame
-from wandas.pipeline import RecipeRegistry, default_recipe_registry, recipe_definition, recipe_operation
+from wandas.pipeline import (
+    RecipeOperation,
+    RecipeRegistry,
+    default_recipe_registry,
+    recipe_definition,
+    recipe_operation,
+)
 from wandas.processing import Welch
 
 from wandas_extras.operations import AngleResample, TachoRpm, angle_sample_times, validate_rpm_params
@@ -271,6 +277,22 @@ def recipe_registry() -> RecipeRegistry:
     Pass it to ``RecipePlan.from_frame``, ``RecipePlan.load`` and ``RecipePlan.apply``.
     """
     registry = default_recipe_registry()
-    for method in (ExtrasFrame.rpm, ExtrasFrame.angle_resample, AngleFrame.order_spectrum):
-        registry = registry.with_operation(recipe_definition(method))
+    for operation in recipe_operations():
+        registry = registry.with_operation(operation)
     return registry
+
+
+def recipe_operations() -> list[RecipeOperation]:
+    """The Recipe declarations of every ``@recipe_operation`` method of the wandas-extras Frames.
+
+    Collected from the classes, so a new decorated method is registered without editing a list.
+    A new Frame class goes into the tuple below.
+    """
+    operations = []
+    for cls in (ExtrasFrame, AngleFrame, OrderSpectralFrame):
+        for value in vars(cls).values():
+            try:
+                operations.append(recipe_definition(value))
+            except TypeError:  # not decorated with @recipe_operation
+                continue
+    return operations
