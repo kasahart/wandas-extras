@@ -89,7 +89,14 @@ def modal_parameters(
     h = np.asarray(frf.data).reshape(-1)
     if h.shape != f.shape:
         raise ValueError("frf must have exactly one channel; use frame.get_channel(...)")
-    coh = None if coherence is None else np.asarray(coherence.data).reshape(-1).real
+    coh = None
+    if coherence is not None:
+        coh = np.asarray(coherence.data).reshape(-1).real
+        if coh.shape != f.shape or not np.allclose(np.asarray(coherence.freqs, dtype=float), f):
+            raise ValueError(
+                "coherence must be one channel on the same frequencies as frf; "
+                "compute both with the same n_fft and pick the same channel with get_channel(...)"
+            )
     mag = np.abs(h)
     if bands_hz:
         idx = []
