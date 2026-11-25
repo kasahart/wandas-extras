@@ -1,5 +1,3 @@
-from typing import cast
-
 import numpy as np
 import pytest
 import wandas as wd
@@ -19,8 +17,7 @@ def _run_up_tacho(rpm0=600.0, rpm1=1800.0, seconds=8.0, pulses_per_rev=1):
 
 
 def _frame(data, **kwargs) -> ExtrasFrame:
-    # wandas 0.13 types from_numpy as returning ChannelFrame; the object is an ExtrasFrame.
-    return cast(ExtrasFrame, ExtrasFrame.from_numpy(data, FS, **kwargs))
+    return ExtrasFrame.from_numpy(data, FS, **kwargs)
 
 
 def test_rpm_follows_the_run_up_as_a_lazy_frame():
@@ -80,6 +77,17 @@ def test_rpm_replays_from_a_recipe():
 
     expected = _frame(other).low_pass_filter(cutoff=2000.0).rpm(threshold=2.5)
     np.testing.assert_allclose(replayed.data, expected.data)
+
+
+def test_read_wav_returns_extras_frame(tmp_path):
+    """The README starts from ExtrasFrame.read_wav(); that needs wandas>=0.13.1 (kasahart/wandas#644)."""
+    path = tmp_path / "tacho.wav"
+    _frame(_run_up_tacho()[0] / 5.0).to_wav(path)
+
+    frame = ExtrasFrame.read_wav(path)
+
+    assert type(frame) is ExtrasFrame, "raise the wandas floor in pyproject.toml to a version with #644"
+    assert frame.rpm().channels[0].unit == "rpm"
 
 
 def test_plain_channel_frame_does_not_change():
