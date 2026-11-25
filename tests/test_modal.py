@@ -67,3 +67,13 @@ def test_rejects_unknown_type_and_multichannel():
         modal_parameters(_FRF(f, f.astype(complex)), "compliance")  # ty: ignore[invalid-argument-type]
     with pytest.raises(ValueError, match="one channel"):
         modal_parameters(_FRF(f, np.ones((2, 10), dtype=complex)), "receptance")
+
+
+def test_rejects_coherence_on_other_frequencies_or_channels():
+    f = np.arange(0, 600, 0.25)
+    frf = _FRF(f, _receptance(f))
+
+    with pytest.raises(ValueError, match="same frequencies"):
+        modal_parameters(frf, "receptance", coherence=_FRF(np.arange(0, 600, 1.0), np.ones(600)))
+    with pytest.raises(ValueError, match="one channel"):
+        modal_parameters(frf, "receptance", coherence=_FRF(f, np.ones((2, len(f)))))
